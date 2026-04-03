@@ -27,7 +27,15 @@ st.markdown("""
     }
     .english-box * { color: #1a202c !important; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
-    hr { margin: 2rem 0; }
+    /* Styl pro tlačítko, aby bylo na mobilu výrazné */
+    .stButton>button {
+        width: 100%;
+        background-color: #3b82f6;
+        color: white;
+        border-radius: 8px;
+        height: 3em;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -35,23 +43,9 @@ st.markdown("""
 def analyze_text(text):
     system_instruction = """You are a professional English teacher. 
     Analyze the text and return a JSON object.
-    
-    IMPORTANT RULES:
     1. 'translation' must be ONLY in Czech.
-    2. 'grammar' section MUST include: Grammar notes, Synonyms, Idioms, and Alternative expressions related to the input.
-    3. Use Markdown (bolding, bullet points) inside the JSON strings for better readability.
-    
-    JSON Structure:
-    {
-      "original": "text",
-      "correction": "corrected text with bold changes",
-      "meaning": "clear explanation in English",
-      "grammar": "Grammar notes + **Synonyms**: ... + **Idioms**: ... + **Alternatives**: ...",
-      "stylistic": "dialect/style notes in English",
-      "translation": "český překlad",
-      "phonetic": "IPA",
-      "example": "example sentence in English"
-    }"""
+    2. 'grammar' section MUST include: Grammar notes, Synonyms, Idioms, and Alternative expressions.
+    Use Markdown inside JSON strings."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -63,10 +57,14 @@ def analyze_text(text):
 # --- HLAVNÍ UI ---
 st.title("Professional English Master")
 
-user_input = st.text_area("Zadejte text k analýze:", placeholder="Type something like 'I'm exhausted'...", height=100)
+user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here...", height=150)
 
-if user_input:
-    with st.spinner('Učitel připravuje komplexní rozbor...'):
+# PŘIDÁNÍ TLAČÍTKA PRO MOBILNÍ ZAŘÍZENÍ
+submit_button = st.button("🚀 Analyzovat text")
+
+# Analýza se spustí, pokud je stisknuto tlačítko NEBO pokud uživatel použije Ctrl+Enter (Streamlit default)
+if submit_button and user_input:
+    with st.spinner('Učitel připravuje rozbor...'):
         try:
             res = analyze_text(user_input)
             
@@ -97,7 +95,7 @@ if user_input:
                 st.subheader("🇨🇿 Překlad")
                 st.info(g('translation'))
 
-            # --- ROZŠÍŘENÁ GRAMATIKA, SYNONYMA, IDIOMY ---
+            # --- ROZŠÍŘENÁ GRAMATIKA ---
             st.subheader("Grammar, Synonyms & Idioms")
             st.markdown(f"""
                 <div class='english-box'>
@@ -120,3 +118,5 @@ if user_input:
             
         except Exception as e:
             st.error(f"Chyba: {e}")
+elif submit_button and not user_input:
+    st.warning("Nejdříve prosím zadejte nějaký text.")
