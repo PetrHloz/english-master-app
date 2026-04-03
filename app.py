@@ -3,7 +3,7 @@ import openai
 import json
 import pandas as pd
 import io
-from gtts import gTTS # Nová knihovna pro výslovnost
+from gtts import gTTS
 
 # --- KONFIGURACE ---
 st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="🏴󠁧󠁢󠁳󠁣󠁴󠁿")
@@ -20,7 +20,7 @@ st.markdown("""
         background-color: #ffffff; color: #1a202c !important; 
         padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;
     }
-    .phonetic-text { color: #4a5568; font-style: italic; font-size: 1.2rem; margin-top: -10px; margin-bottom: 10px; }
+    .phonetic-text { color: #4a5568; font-style: italic; font-size: 1.2rem; margin-bottom: 10px; }
     .english-box *, .scottish-box * { color: #1a202c !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -46,24 +46,22 @@ if user_input:
         try:
             res = analyze_text(user_input)
             
-            # --- NOVÁ SEKCE: FONETIKA A HLAS ---
-            st.markdown(f"<div class='phonetic-text'>[{res['phonetic']}]</div>", unsafe_allow_html=True)
+            # --- FONETIKA A AUDIO (Hned pod vstupem) ---
+            st.markdown(f"<div class='phonetic-text'>Fonetický přepis: [{res['phonetic']}]</div>", unsafe_allow_html=True)
             
-            col_audio, col_link = st.columns([1, 4])
-            with col_audio:
-                # Generování audia přes Google TTS
-                tts = gTTS(text=user_input, lang='en', tld='co.uk') # Britská angličtina
-                audio_fp = io.BytesIO()
-                tts.write_to_fp(audio_fp)
-                st.audio(audio_fp, format='audio/mp3')
+            # Generování audia
+            tts = gTTS(text=user_input, lang='en', tld='co.uk')
+            audio_fp = io.BytesIO()
+            tts.write_to_fp(audio_fp)
+            st.audio(audio_fp, format='audio/mp3')
             
-            with col_link:
-                # Odkaz na Cambridge Dictionary pro detailní studium
-                search_term = user_input.split()[0] if len(user_input.split()) > 0 else ""
-                st.markdown(f"[🔍 Detailní výslovnost na Cambridge Dictionary](https://dictionary.cambridge.org/dictionary/english/{search_term})")
+            # Odkaz na Cambridge
+            first_word = user_input.split()[0] if user_input.strip() else ""
+            st.markdown(f"🔗 [Cambridge Dictionary: {first_word}](https://dictionary.cambridge.org/dictionary/english/{first_word})")
 
-            # --- ZBYTEK ANALÝZY ---
             st.divider()
+            
+            # --- ZBYTEK ANALÝZY ---
             c1, c2 = st.columns(2)
             with c1:
                 st.subheader("✅ Correction")
@@ -87,3 +85,4 @@ if user_input:
             
         except Exception as e:
             st.error(f"Chyba: {e}")
+
