@@ -11,24 +11,28 @@ st.set_page_config(page_title="Professional English Master", layout="wide", page
 try:
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 except Exception:
-    st.error("⚠️ Chybí API klíč v Secrets!")
+    st.error("⚠️ API key missing in Secrets!")
 
 # --- GRAFIKA ---
 st.markdown("""
     <style>
-    .english-box, .scottish-box { 
+    .english-box { 
         background-color: #ffffff; color: #1a202c !important; 
         padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;
     }
-    .phonetic-text { color: #4a5568; font-style: italic; font-size: 1.2rem; margin-bottom: 10px; }
-    .english-box *, .scottish-box * { color: #1a202c !important; }
+    .phonetic-display { 
+        background-color: #f8fafc; color: #1e293b; 
+        padding: 10px; border-radius: 5px; border-left: 5px solid #3b82f6;
+        font-family: monospace; font-size: 1.3rem; margin-bottom: 15px;
+    }
+    .english-box * { color: #1a202c !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- MOZEK AI ---
 def analyze_text(text):
-    system_instruction = """Jsi profesionální učitel angličtiny. 
-    Vrať JSON: original, correction, meaning (en), grammar (en), stylistic (en/scot), translation (cz), phonetic (IPA), example (en)."""
+    system_instruction = """You are a professional English teacher. 
+    Return ONLY a JSON object with: original, correction, meaning (en), grammar (en), stylistic (en), translation (cz), phonetic (IPA), example (en)."""
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "system", "content": system_instruction}, {"role": "user", "content": text}],
@@ -39,49 +43,43 @@ def analyze_text(text):
 # --- ROZHRANÍ ---
 st.title("Professional English Master")
 
-user_input = st.text_area("Zadejte text k analýze:", placeholder="I didn't saw him...", height=100)
+user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here...", height=100)
 
 if user_input:
-    with st.spinner('Učitel připravuje rozbor a výslovnost...'):
+    with st.spinner('Analyzing...'):
         try:
             res = analyze_text(user_input)
             
-            # --- FONETIKA A AUDIO ---
-            st.markdown(f"<div class='phonetic-text'>Fonetický přepis: [{res['phonetic']}]</div>", unsafe_allow_html=True)
+            # --- VÝSLOVNOST A FONETIKA (Hned pod zadáním) ---
+            st.subheader("Pronunciation")
+            st.markdown(f"<div class='phonetic-display'>IPA: /{res['phonetic']}/</div>", unsafe_allow_html=True)
             
-            # Generování audia
+            # Audio
             tts = gTTS(text=user_input, lang='en', tld='co.uk')
             audio_fp = io.BytesIO()
             tts.write_to_fp(audio_fp)
             st.audio(audio_fp, format='audio/mp3')
             
-            # Odkaz na Cambridge
-            first_word = user_input.split()[0] if user_input.strip() else ""
-            st.markdown(f"🔗 [Cambridge Dictionary: {first_word}](https://dictionary.cambridge.org/dictionary/english/{first_word})")
-
             st.divider()
-            
-            # --- ZBYTEK ANALÝZY ---
-            c1, c2 = st.columns(2)
-            with c1:
+
+            # --- ANALÝZA ---
+            col1, col2 = st.columns(2)
+            with col1:
                 st.subheader("Correction")
                 st.success(res['correction'])
-            with c2:
+            with col2:
                 st.subheader("Překlad")
                 st.info(res['translation'])
 
             st.subheader("Grammar & Meaning")
             st.markdown(f"<div class='english-box'><b>Meaning:</b> {res['meaning']}<br><br><b>Grammar:</b> {res['grammar']}</div>", unsafe_allow_html=True)
 
-            st.subheader("Stylistic & Dialect Corner")
-            st.markdown(f"<div class='scottish-box'>{res['stylistic']}</div>", unsafe_allow_html=True)
-
             # ANKI EXPORT
             csv_data = [[res['original'], res['phonetic'], "", res['meaning'], res['translation'], res['example'], "NEW"]]
             df = pd.DataFrame(csv_data)
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
-            st.download_button("📥 Stáhnout pro Anki (CSV)", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
+            st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
             
         except Exception as e:
-            st.error(f"Chyba: {e}")
+            st.error(f"Error: {e}")
