@@ -16,7 +16,7 @@ except Exception:
 # --- GRAFIKA ---
 st.markdown("""
     <style>
-    .english-box { 
+    .english-box, .dialect-box { 
         background-color: #ffffff; color: #1a202c !important; 
         padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;
     }
@@ -25,14 +25,17 @@ st.markdown("""
         padding: 10px; border-radius: 5px; border-left: 5px solid #3b82f6;
         font-family: monospace; font-size: 1.3rem; margin-bottom: 15px;
     }
-    .english-box * { color: #1a202c !important; }
+    .english-box *, .dialect-box * { color: #1a202c !important; }
+    h3 { color: #1e3a8a; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- MOZEK AI ---
 def analyze_text(text):
-    system_instruction = """You are a professional English teacher. 
-    Return ONLY a JSON object with: original, correction, meaning (en), grammar (en), stylistic (en), translation (cz), phonetic (IPA), example (en)."""
+    system_instruction = """You are a professional English teacher specializing in active spoken English and Scottish dialects. 
+    Return ONLY a JSON object with these keys: 
+    original, correction, meaning (en), grammar (en), stylistic (en/scot), translation (cz), phonetic (IPA), example (en)."""
+    
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "system", "content": system_instruction}, {"role": "user", "content": text}],
@@ -50,11 +53,11 @@ if user_input:
         try:
             res = analyze_text(user_input)
             
-            # --- VÝSLOVNOST A FONETIKA (Hned pod zadáním) ---
+            # --- VÝSLOVNOST A FONETIKA ---
             st.subheader("Pronunciation")
             st.markdown(f"<div class='phonetic-display'>IPA: /{res['phonetic']}/</div>", unsafe_allow_html=True)
             
-            # Audio
+            # Audio (Britská angličtina)
             tts = gTTS(text=user_input, lang='en', tld='co.uk')
             audio_fp = io.BytesIO()
             tts.write_to_fp(audio_fp)
@@ -62,7 +65,7 @@ if user_input:
             
             st.divider()
 
-            # --- ANALÝZA ---
+            # --- ANALÝZA (Oprava a Překlad) ---
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("Correction")
@@ -71,10 +74,16 @@ if user_input:
                 st.subheader("Překlad")
                 st.info(res['translation'])
 
+            # --- GRAMATIKA A VÝZNAM ---
             st.subheader("Grammar & Meaning")
             st.markdown(f"<div class='english-box'><b>Meaning:</b> {res['meaning']}<br><br><b>Grammar:</b> {res['grammar']}</div>", unsafe_allow_html=True)
 
-            # ANKI EXPORT
+            # --- SKOTSKÝ / STYLISTICKÝ KOUTEK (Vráceno zpět) ---
+            st.subheader("Stylistic & Dialect Corner")
+            st.markdown(f"<div class='dialect-box'>{res['stylistic']}</div>", unsafe_allow_html=True)
+
+            # --- ANKI EXPORT ---
+            st.divider()
             csv_data = [[res['original'], res['phonetic'], "", res['meaning'], res['translation'], res['example'], "NEW"]]
             df = pd.DataFrame(csv_data)
             csv_buffer = io.StringIO()
