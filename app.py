@@ -25,30 +25,30 @@ st.markdown("""
         padding: 12px; border-radius: 8px; border-left: 5px solid #3b82f6;
         font-family: 'Courier New', monospace; font-size: 1.3rem; margin-bottom: 15px;
     }
-    .english-box *, .dialect-box * { color: #1a202c !important; }
+    .english-box * { color: #1a202c !important; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
+    hr { margin: 2rem 0; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- FUNKCE PRO ANALÝZU ---
 def analyze_text(text):
-    # Velmi striktní instrukce pro AI, aby nedělala nesmysly
     system_instruction = """You are a professional English teacher. 
-    Task: Analyze the provided English text.
-    Rules:
-    1. 'translation' MUST be ONLY in Czech language.
-    2. 'phonetic' MUST be the IPA transcription.
-    3. 'stylistic' SHOULD focus on Scottish variants or spoken register.
-    4. Return ONLY a valid JSON object.
+    Analyze the text and return a JSON object.
+    
+    IMPORTANT RULES:
+    1. 'translation' must be ONLY in Czech.
+    2. 'grammar' section MUST include: Grammar notes, Synonyms, Idioms, and Alternative expressions related to the input.
+    3. Use Markdown (bolding, bullet points) inside the JSON strings for better readability.
     
     JSON Structure:
     {
       "original": "text",
       "correction": "corrected text with bold changes",
-      "meaning": "explanation in English",
-      "grammar": "grammar notes in English",
+      "meaning": "clear explanation in English",
+      "grammar": "Grammar notes + **Synonyms**: ... + **Idioms**: ... + **Alternatives**: ...",
       "stylistic": "dialect/style notes in English",
-      "translation": "PŘEKLAD POUZE V ČEŠTINĚ",
+      "translation": "český překlad",
       "phonetic": "IPA",
       "example": "example sentence in English"
     }"""
@@ -63,14 +63,13 @@ def analyze_text(text):
 # --- HLAVNÍ UI ---
 st.title("Professional English Master")
 
-user_input = st.text_area("Zadejte text k analýze:", placeholder="Type something...", height=100)
+user_input = st.text_area("Zadejte text k analýze:", placeholder="Type something like 'I'm exhausted'...", height=100)
 
 if user_input:
-    with st.spinner('Analyzuji...'):
+    with st.spinner('Učitel připravuje komplexní rozbor...'):
         try:
             res = analyze_text(user_input)
             
-            # Pojistky pro načtení klíčů (aby aplikace nespadla)
             def g(key, default="N/A"):
                 val = res.get(key, default)
                 return val if val else default
@@ -79,7 +78,6 @@ if user_input:
             st.subheader("Pronunciation")
             st.markdown(f"<div class='phonetic-display'>IPA: /{g('phonetic')}/</div>", unsafe_allow_html=True)
             
-            # Audio (Google TTS)
             try:
                 tts = gTTS(text=user_input, lang='en', tld='co.uk')
                 audio_fp = io.BytesIO()
@@ -99,9 +97,14 @@ if user_input:
                 st.subheader("🇨🇿 Překlad")
                 st.info(g('translation'))
 
-            # --- GRAMATIKA A VÝZNAM ---
-            st.subheader("Grammar & Meaning")
-            st.markdown(f"<div class='english-box'><b>Meaning:</b> {g('meaning')}<br><br><b>Grammar:</b> {g('grammar')}</div>", unsafe_allow_html=True)
+            # --- ROZŠÍŘENÁ GRAMATIKA, SYNONYMA, IDIOMY ---
+            st.subheader("Grammar, Synonyms & Idioms")
+            st.markdown(f"""
+                <div class='english-box'>
+                    <b>Meaning:</b><br>{g('meaning')}<br><br>
+                    <b>Details & Variations:</b><br>{g('grammar')}
+                </div>
+            """, unsafe_allow_html=True)
 
             # --- DIALEKTY ---
             st.subheader("Stylistic & Dialect Corner")
@@ -109,21 +112,11 @@ if user_input:
 
             # --- ANKI EXPORT ---
             st.divider()
-            # Příprava CSV dat pro Anki
-            csv_row = [
-                g('original', user_input),
-                g('phonetic'),
-                "",
-                g('meaning'),
-                g('translation'),
-                g('example'),
-                "NEW"
-            ]
+            csv_row = [g('original', user_input), g('phonetic'), "", g('meaning'), g('translation'), g('example'), "NEW"]
             df = pd.DataFrame([csv_row])
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
-            
             st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
             
         except Exception as e:
-            st.error(f"Chyba při komunikaci s AI: {e}")
+            st.error(f"Chyba: {e}")
