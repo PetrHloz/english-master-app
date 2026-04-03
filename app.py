@@ -6,7 +6,7 @@ import io
 from gtts import gTTS
 
 # --- KONFIGURACE ---
-st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="🏴󠁧󠁢󠁳󠁣󠁴󠁿")
+st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
 
 try:
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -37,7 +37,7 @@ def analyze_text(text):
     return json.loads(response.choices[0].message.content)
 
 # --- ROZHRANÍ ---
-st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Professional English Master")
+st.title("Professional English Master")
 
 user_input = st.text_area("Zadejte text k analýze:", placeholder="I didn't saw him...", height=100)
 
@@ -46,7 +46,7 @@ if user_input:
         try:
             res = analyze_text(user_input)
             
-            # --- FONETIKA A AUDIO (Hned pod vstupem) ---
+            # --- FONETIKA A AUDIO ---
             st.markdown(f"<div class='phonetic-text'>Fonetický přepis: [{res['phonetic']}]</div>", unsafe_allow_html=True)
             
             # Generování audia
@@ -64,16 +64,16 @@ if user_input:
             # --- ZBYTEK ANALÝZY ---
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("✅ Correction")
+                st.subheader("Correction")
                 st.success(res['correction'])
             with c2:
-                st.subheader("🇨🇿 Překlad")
+                st.subheader("Překlad")
                 st.info(res['translation'])
 
-            st.subheader("🧠 Grammar & Meaning")
+            st.subheader("Grammar & Meaning")
             st.markdown(f"<div class='english-box'><b>Meaning:</b> {res['meaning']}<br><br><b>Grammar:</b> {res['grammar']}</div>", unsafe_allow_html=True)
 
-            st.subheader("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Stylistic & Scottish Corner")
+            st.subheader("Stylistic & Dialect Corner")
             st.markdown(f"<div class='scottish-box'>{res['stylistic']}</div>", unsafe_allow_html=True)
 
             # ANKI EXPORT
@@ -85,4 +85,3 @@ if user_input:
             
         except Exception as e:
             st.error(f"Chyba: {e}")
-
