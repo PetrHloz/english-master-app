@@ -5,13 +5,13 @@ import pandas as pd
 import io
 from gtts import gTTS
 
-# --- KONFIGURACE STRÁNKY ---
+# --- KONFIGURACE ---
 st.set_page_config(page_title="English Master", layout="wide", page_icon="📝")
 
 try:
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 except Exception:
-    st.error("⚠️ API key missing in Streamlit Secrets!")
+    st.error("⚠️ API key missing!")
 
 # --- CSS STYLING ---
 st.markdown("""
@@ -27,25 +27,20 @@ st.markdown("""
     }
     .english-box * { color: #1a202c !important; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
-    /* Styl pro tlačítko, aby bylo na mobilu výrazné */
-    .stButton>button {
-        width: 100%;
-        background-color: #3b82f6;
-        color: white;
-        border-radius: 8px;
-        height: 3em;
-        font-weight: bold;
-    }
+    .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNKCE PRO ANALÝZU ---
 def analyze_text(text):
-    system_instruction = """You are a professional English teacher. 
-    Analyze the text and return a JSON object.
-    1. 'translation' must be ONLY in Czech.
-    2. 'grammar' section MUST include: Grammar notes, Synonyms, Idioms, and Alternative expressions.
-    Use Markdown inside JSON strings."""
+    system_instruction = """You are a top-tier English teacher and linguist.
+    Analyze the text and return a JSON object with EXACTLY these keys:
+    "original", "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
+
+    Rules:
+    - 'translation' MUST be only in Czech.
+    - 'details' MUST contain grammar notes, synonyms, and idioms in English.
+    - 'stylistic' MUST focus on Scottish English or register.
+    - Use Markdown for bolding keywords."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -54,69 +49,61 @@ def analyze_text(text):
     )
     return json.loads(response.choices[0].message.content)
 
-# --- HLAVNÍ UI ---
+# --- UI ---
 st.title("Professional English Master")
-
 user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here...", height=150)
-
-# PŘIDÁNÍ TLAČÍTKA PRO MOBILNÍ ZAŘÍZENÍ
 submit_button = st.button("🚀 Analyzovat text")
 
-# Analýza se spustí, pokud je stisknuto tlačítko NEBO pokud uživatel použije Ctrl+Enter (Streamlit default)
 if submit_button and user_input:
-    with st.spinner('Učitel připravuje rozbor...'):
+    with st.spinner('Analyzuji...'):
         try:
             res = analyze_text(user_input)
             
-            def g(key, default="N/A"):
-                val = res.get(key, default)
-                return val if val else default
+            # Funkce pro bezpečné získání textu
+            def get_data(key):
+                return res.get(key, "Information not available")
 
-            # --- VÝSLOVNOST ---
+            # 1. Výslovnost
             st.subheader("Pronunciation")
-            st.markdown(f"<div class='phonetic-display'>IPA: /{g('phonetic')}/</div>", unsafe_allow_html=True)
+            phonetic = get_data('phonetic')
+            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
             
-            try:
-                tts = gTTS(text=user_input, lang='en', tld='co.uk')
-                audio_fp = io.BytesIO()
-                tts.write_to_fp(audio_fp)
-                st.audio(audio_fp, format='audio/mp3')
-            except:
-                st.warning("Audio unavailable.")
+            tts = gTTS(text=user_input, lang='en', tld='co.uk')
+            audio_fp = io.BytesIO()
+            tts.write_to_fp(audio_fp)
+            st.audio(audio_fp, format='audio/mp3')
 
             st.divider()
 
-            # --- OPRAVA A PŘEKLAD ---
-            col1, col2 = st.columns(2)
-            with col1:
+            # 2. Oprava a Překlad
+            c1, c2 = st.columns(2)
+            with c1:
                 st.subheader("Correction")
-                st.success(g('correction'))
-            with col2:
+                st.success(get_data('correction'))
+            with c2:
                 st.subheader("🇨🇿 Překlad")
-                st.info(g('translation'))
+                st.info(get_data('translation'))
 
-            # --- ROZŠÍŘENÁ GRAMATIKA ---
+            # 3. Gramatika, Synonyma, Idiomy
             st.subheader("Grammar, Synonyms & Idioms")
             st.markdown(f"""
                 <div class='english-box'>
-                    <b>Meaning:</b><br>{g('meaning')}<br><br>
-                    <b>Details & Variations:</b><br>{g('grammar')}
+                    <b>Meaning:</b><br>{get_data('meaning')}<br><br>
+                    <b>Details & Variations:</b><br>{get_data('details')}
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- DIALEKTY ---
+            # 4. Dialekty
             st.subheader("Stylistic & Dialect Corner")
-            st.markdown(f"<div class='dialect-box'>{g('stylistic')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='dialect-box'>{get_data('stylistic')}</div>", unsafe_allow_html=True)
 
-            # --- ANKI EXPORT ---
+            # 5. Anki
             st.divider()
-            csv_row = [g('original', user_input), g('phonetic'), "", g('meaning'), g('translation'), g('example'), "NEW"]
+            csv_row = [user_input, phonetic, "", get_data('meaning'), get_data('translation'), get_data('example'), "NEW"]
             df = pd.DataFrame([csv_row])
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
             st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
             
         except Exception as e:
-            st.error(f"Chyba: {e}")
-elif submit_button and not user_input:
-    st.warning("Nejdříve prosím zadejte nějaký text.")
+            st.error(f"Chyba při zpracování: {e}")
