@@ -32,7 +32,7 @@ st.markdown("""
         font-size: 1.1rem; margin-bottom: 15px;
     }
     .english-box * { color: #1a202c !important; }
-    .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 10px; }
+    .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 10px; font-size: 1.1rem; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
     .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; }
     </style>
@@ -43,12 +43,13 @@ def analyze_text(text):
     Analyze the text and return a JSON object.
     
     Rules for the 'details' field:
-    Do NOT use asterisks (*) for bolding.
-    Provide the content in three parts separated by a double newline:
+    Do NOT use asterisks (*) for bolding in 'details'.
+    Structure:
     Meaning: [text]
     Grammar & Origin: [text]
     Synonyms & Idioms: [text]
 
+    For 'correction': If the input is correct, return the same text. If incorrect, provide the corrected version.
     'translation' MUST be only in Czech."""
     
     response = client.chat.completions.create(
@@ -69,17 +70,20 @@ if submit_button and user_input:
             res = analyze_text(user_input)
             
             def get_data(key):
-                val = res.get(key, "")
-                return val if val else "Information not available"
+                return res.get(key, "").strip()
 
-            # 1. CORRECTION
+            # 1. CORRECTION LOGIKA
             st.subheader("Correction")
-            st.markdown(f"<div class='correction-box'>{get_data('correction')}</div>", unsafe_allow_html=True)
+            corr_text = get_data('correction')
+            # Pokud je oprava stejná jako vstup, nebo AI nic neposlala, napíšeme, že je to OK
+            display_corr = corr_text if corr_text and corr_text.lower() != user_input.lower() else f"✅ Your text is correct: **{user_input}**"
+            
+            st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
             # 2. PRONUNCIATION
             st.subheader("Pronunciation")
             phonetic = get_data('phonetic')
-            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic if phonetic else 'N/A'}/</div>", unsafe_allow_html=True)
             
             try:
                 tts = gTTS(text=user_input, lang='en', tld='co.uk')
@@ -98,8 +102,8 @@ if submit_button and user_input:
             # 4. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
             
-            # Vyčištění textu od hvězdiček a formátování nadpisů
             raw_details = get_data('details').replace('*', '')
+            # Sjednocení nadpisů bez hvězdiček
             formatted_details = raw_details.replace('Meaning:', '<span class="section-header">Meaning:</span>')\
                                            .replace('Grammar & Origin:', '<span class="section-header">Grammar & Origin:</span>')\
                                            .replace('Synonyms & Idioms:', '<span class="section-header">Synonyms & Idioms:</span>')
