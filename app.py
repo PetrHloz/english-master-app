@@ -39,17 +39,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def analyze_text(text):
-    system_instruction = """You are a top-tier English teacher and linguist.
-    Analyze the text and return a JSON object.
+    system_instruction = """You are a top-tier English teacher.
+    Analyze the text and return a JSON object with EXACTLY these keys:
+    "original", "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
     
-    Rules for the 'details' field:
-    Do NOT use asterisks (*) for bolding in 'details'.
-    Structure:
+    Rules for 'details':
+    Format exactly like this (no asterisks):
     Meaning: [text]
     Grammar & Origin: [text]
     Synonyms & Idioms: [text]
-
-    For 'correction': If the input is correct, return the same text. If incorrect, provide the corrected version.
+    
     'translation' MUST be only in Czech."""
     
     response = client.chat.completions.create(
@@ -69,20 +68,25 @@ if submit_button and user_input:
         try:
             res = analyze_text(user_input)
             
-            def get_data(key):
-                return res.get(key, "").strip()
+            # Bezpečná funkce pro zpracování jakéhokoli výstupu z AI
+            def safe_get(key):
+                data = res.get(key, "")
+                if isinstance(data, list): return ", ".join(map(str, data))
+                if isinstance(data, dict): return str(data)
+                return str(data).strip()
 
-            # 1. CORRECTION LOGIKA
+            # 1. CORRECTION
             st.subheader("Correction")
-            corr_text = get_data('correction')
-            # Pokud je oprava stejná jako vstup, nebo AI nic neposlala, napíšeme, že je to OK
-            display_corr = corr_text if corr_text and corr_text.lower() != user_input.lower() else f"✅ Your text is correct: **{user_input}**"
-            
+            corr = safe_get('correction')
+            if not corr or corr.lower() == user_input.lower():
+                display_corr = f"✅ Your text is correct: **{user_input}**"
+            else:
+                display_corr = corr
             st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
             # 2. PRONUNCIATION
             st.subheader("Pronunciation")
-            phonetic = get_data('phonetic')
+            phonetic = safe_get('phonetic')
             st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic if phonetic else 'N/A'}/</div>", unsafe_allow_html=True)
             
             try:
@@ -93,20 +97,18 @@ if submit_button and user_input:
             except:
                 st.warning("Audio unavailable.")
 
-            # 3. SKRYTÝ PŘEKLAD
+            # 3. PŘEKLAD
             with st.expander("🇨🇿 Zobrazit český překlad"):
-                st.info(get_data('translation'))
+                st.info(safe_get('translation'))
 
             st.divider()
 
             # 4. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
-            
-            raw_details = get_data('details').replace('*', '')
-            # Sjednocení nadpisů bez hvězdiček
-            formatted_details = raw_details.replace('Meaning:', '<span class="section-header">Meaning:</span>')\
-                                           .replace('Grammar & Origin:', '<span class="section-header">Grammar & Origin:</span>')\
-                                           .replace('Synonyms & Idioms:', '<span class="section-header">Synonyms & Idioms:</span>')
+            details = safe_get('details').replace('*', '')
+            formatted_details = details.replace('Meaning:', '<span class="section-header">Meaning:</span>')\
+                                       .replace('Grammar & Origin:', '<span class="section-header">Grammar & Origin:</span>')\
+                                       .replace('Synonyms & Idioms:', '<span class="section-header">Synonyms & Idioms:</span>')
             
             st.markdown(f"""
                 <div class='english-box'>
@@ -116,11 +118,11 @@ if submit_button and user_input:
 
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
-            st.markdown(f"<div class='dialect-box'>{get_data('stylistic').replace('*', '')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='dialect-box'>{safe_get('stylistic').replace('*', '')}</div>", unsafe_allow_html=True)
 
             # 6. ANKI
             st.divider()
-            csv_row = [user_input, phonetic, "", get_data('meaning'), get_data('translation'), get_data('example'), "NEW"]
+            csv_row = [user_input, phonetic, "", safe_get('meaning'), safe_get('translation'), safe_get('example'), "NEW"]
             df = pd.DataFrame([csv_row])
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
