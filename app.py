@@ -32,6 +32,7 @@ st.markdown("""
         font-size: 1.1rem; margin-bottom: 15px;
     }
     .english-box * { color: #1a202c !important; }
+    .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 10px; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
     .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; }
     </style>
@@ -42,10 +43,11 @@ def analyze_text(text):
     Analyze the text and return a JSON object.
     
     Rules for the 'details' field:
-    Always use this EXACT Markdown format for consistency:
-    **Meaning**: [definition]
-    **Grammar & Origin**: [analysis]
-    **Synonyms & Idioms**: [list]
+    Do NOT use asterisks (*) for bolding.
+    Provide the content in three parts separated by a double newline:
+    Meaning: [text]
+    Grammar & Origin: [text]
+    Synonyms & Idioms: [text]
 
     'translation' MUST be only in Czech."""
     
@@ -95,17 +97,22 @@ if submit_button and user_input:
 
             # 4. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
-            # Odstranění nadbytečných mezer a sjednocení
-            details_content = get_data('details').replace('\n\n', '<br>').replace('\n', '<br>')
+            
+            # Vyčištění textu od hvězdiček a formátování nadpisů
+            raw_details = get_data('details').replace('*', '')
+            formatted_details = raw_details.replace('Meaning:', '<span class="section-header">Meaning:</span>')\
+                                           .replace('Grammar & Origin:', '<span class="section-header">Grammar & Origin:</span>')\
+                                           .replace('Synonyms & Idioms:', '<span class="section-header">Synonyms & Idioms:</span>')
+            
             st.markdown(f"""
                 <div class='english-box'>
-                    {details_content}
+                    {formatted_details.replace('\n', '<br>')}
                 </div>
             """, unsafe_allow_html=True)
 
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
-            st.markdown(f"<div class='dialect-box'>{get_data('stylistic')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='dialect-box'>{get_data('stylistic').replace('*', '')}</div>", unsafe_allow_html=True)
 
             # 6. ANKI
             st.divider()
