@@ -26,7 +26,6 @@ st.markdown("""
         padding: 20px; border-radius: 10px; border: 1px solid #bbf7d0;
         min-height: 150px; font-size: 1.2rem; margin-bottom: 20px;
     }
-    /* Červené a tučné zvýraznění opravy */
     .correction-box b, .correction-box strong { 
         color: #ff0000 !important; 
         font-weight: 900 !important; 
@@ -43,14 +42,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def analyze_text(text):
-    system_instruction = """You are a professional English teacher. 
-    Analyze the text and return a JSON object with EXACTLY these keys:
+    system_instruction = """You are a top-tier English teacher and linguist specializing in Scottish dialects.
+    You MUST return a JSON object with EXACTLY these keys:
     "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
-    
-    Rules:
-    - 'correction': Use <b>tags</b> to highlight corrected parts in RED.
-    - 'details' & 'stylistic': Use plain headers like 'Meaning:', 'Grammar & Origin:', etc. No asterisks.
-    - Return ONLY pure JSON."""
+
+    STRICT CONTENT RULES:
+    1. 'details' MUST contain these exact sections:
+       Meaning: [text]
+       Grammar & Origin: [detailed linguistic analysis + etymology]
+       Synonyms & Idioms: [related phrases]
+
+    2. 'stylistic' MUST contain these exact sections:
+       Colloquial (General): [informal US/UK alternatives]
+       Common Mistake: [learner errors like 'play it by the ear']
+       Scottish English (Scots/Informal): [authentic Scottish versions, terms like 'hen', 'wee', 'whit']
+       Cultural Context: [Scottish or British cultural nuance]
+
+    3. Formatting: Do NOT use asterisks. Use <b>tags</b> ONLY in 'correction' field.
+    4. Language: Everything in English except 'translation' (Czech)."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -65,14 +74,13 @@ user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here..."
 submit_button = st.button("🚀 Analyzovat text")
 
 if submit_button and user_input:
-    with st.spinner('Učitel přemýšlí...'):
+    with st.spinner('Učitel připravuje komplexní analýzu...'):
         try:
             res = analyze_text(user_input)
             
             def clean_text(key):
                 val = res.get(key, "")
                 if isinstance(val, (dict, list)): val = str(val)
-                # Odstraní ošklivé závorky a uvozovky na začátku/konci
                 val = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', str(val))
                 return val.replace('*', '').strip()
 
@@ -85,15 +93,17 @@ if submit_button and user_input:
                 display_corr = corr
             st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
-            # 2. PRONUNCIATION
+            # 2. PRONUNCIATION & PŘEKLAD
             st.subheader("Pronunciation")
             phonetic = clean_text('phonetic')
             st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic if phonetic else 'N/A'}/</div>", unsafe_allow_html=True)
             
-            tts = gTTS(text=user_input, lang='en', tld='co.uk')
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            st.audio(audio_fp, format='audio/mp3')
+            try:
+                tts = gTTS(text=user_input, lang='en', tld='co.uk')
+                audio_fp = io.BytesIO()
+                tts.write_to_fp(audio_fp)
+                st.audio(audio_fp, format='audio/mp3')
+            except: pass
 
             with st.expander("🇨🇿 Zobrazit český překlad"):
                 st.info(clean_text('translation'))
@@ -110,11 +120,12 @@ if submit_button and user_input:
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
             stylistic = clean_text('stylistic')
-            for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
+            headers_s = ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']
+            for h in headers_s:
                 stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
             st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
-            # 6. ANKI EXPORT
+            # 6. ANKI
             st.divider()
             csv_row = [user_input, phonetic, "", clean_text('meaning'), clean_text('translation'), clean_text('example'), "NEW"]
             df = pd.DataFrame([csv_row])
