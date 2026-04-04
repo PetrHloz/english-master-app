@@ -22,8 +22,10 @@ st.markdown("""
     }
     .phonetic-display { 
         background-color: #f1f5f9; color: #1e293b; 
-        padding: 12px; border-radius: 8px; border-left: 5px solid #3b82f6;
-        font-family: 'Courier New', monospace; font-size: 1.3rem; margin-bottom: 15px;
+        padding: 10px; border-radius: 8px; border-left: 5px solid #3b82f6;
+        font-family: 'Courier New', monospace; 
+        font-size: 1.1rem; /* ZDE ZMENŠENO O 2 BODY */
+        margin-bottom: 15px;
     }
     .english-box * { color: #1a202c !important; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
@@ -59,19 +61,21 @@ if submit_button and user_input:
         try:
             res = analyze_text(user_input)
             
-            # Funkce pro bezpečné získání textu
             def get_data(key):
                 return res.get(key, "Information not available")
 
-            # 1. Výslovnost
+            # 1. Výslovnost (Zmenšený font)
             st.subheader("Pronunciation")
             phonetic = get_data('phonetic')
-            st.markdown(f"<div class='phonetic-display'>/{phonetic}/</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
             
-            tts = gTTS(text=user_input, lang='en', tld='co.uk')
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            st.audio(audio_fp, format='audio/mp3')
+            try:
+                tts = gTTS(text=user_input, lang='en', tld='co.uk')
+                audio_fp = io.BytesIO()
+                tts.write_to_fp(audio_fp)
+                st.audio(audio_fp, format='audio/mp3')
+            except:
+                st.warning("Audio unavailable.")
 
             st.divider()
 
