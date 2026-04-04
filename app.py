@@ -41,6 +41,13 @@ def analyze_text(text):
     system_instruction = """You are a top-tier English teacher and linguist.
     Analyze the text and return a JSON object with EXACTLY these keys:
     "original", "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
+
+    Rules for the 'details' field:
+    Create three distinct sections using Markdown:
+    1) **Meaning**: Clear and concise definition.
+    2) **Grammar & Origin**: Analyze sentence structure (e.g., pronouns, phrasal verbs, parts of speech) and explain the etymological origin of the phrase.
+    3) **Synonyms & Idioms**: List related synonyms and similar idiomatic expressions.
+    
     'translation' MUST be only in Czech."""
     
     response = client.chat.completions.create(
@@ -70,7 +77,7 @@ if submit_button and user_input:
             # 2. PRONUNCIATION
             st.subheader("Pronunciation")
             phonetic = get_data('phonetic')
-            st.markdown(f"<div class='phonetic-display'>/{phonetic}/</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
             
             try:
                 tts = gTTS(text=user_input, lang='en', tld='co.uk')
@@ -80,18 +87,17 @@ if submit_button and user_input:
             except:
                 st.warning("Audio unavailable.")
 
-            # 3. SKRYTÝ PŘEKLAD (Nyní hned pod výslovností)
+            # 3. SKRYTÝ PŘEKLAD
             with st.expander("🇨🇿 Zobrazit český překlad"):
                 st.info(get_data('translation'))
 
             st.divider()
 
-            # 4. GRAMMAR, SYNONYMS & IDIOMS
+            # 4. GRAMMAR, SYNONYMS & IDIOMS (Nyní s novou strukturou)
             st.subheader("Grammar, Synonyms & Idioms")
             st.markdown(f"""
                 <div class='english-box'>
-                    <b>Meaning:</b><br>{get_data('meaning')}<br><br>
-                    <b>Details & Variations:</b><br>{get_data('details')}
+                    {get_data('details')}
                 </div>
             """, unsafe_allow_html=True)
 
