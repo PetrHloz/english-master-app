@@ -5,7 +5,7 @@ import pandas as pd
 import io
 from gtts import gTTS
 
-# --- KONFIGURÁCIA ---
+# --- KONFIGURACE ---
 st.set_page_config(page_title="English Master", layout="wide", page_icon="📝")
 
 try:
@@ -20,7 +20,6 @@ st.markdown("""
         background-color: #ffffff; color: #1a202c !important; 
         padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;
     }
-    /* Pole Correction - upravené podľa zadávacieho poľa */
     .correction-box {
         background-color: #f0fdf4; color: #166534 !important;
         padding: 20px; border-radius: 10px; border: 1px solid #bbf7d0;
@@ -64,7 +63,7 @@ if submit_button and user_input:
             def get_data(key):
                 return res.get(key, "Information not available")
 
-            # 1. CORRECTION (Presunuté nad výslovnosť, veľké ako input)
+            # 1. CORRECTION
             st.subheader("Correction")
             st.markdown(f"<div class='correction-box'>{get_data('correction')}</div>", unsafe_allow_html=True)
 
@@ -81,9 +80,13 @@ if submit_button and user_input:
             except:
                 st.warning("Audio unavailable.")
 
+            # 3. SKRYTÝ PŘEKLAD (Nyní hned pod výslovností)
+            with st.expander("🇨🇿 Zobrazit český překlad"):
+                st.info(get_data('translation'))
+
             st.divider()
 
-            # 3. GRAMMAR, SYNONYMS & IDIOMS
+            # 4. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
             st.markdown(f"""
                 <div class='english-box'>
@@ -91,10 +94,6 @@ if submit_button and user_input:
                     <b>Details & Variations:</b><br>{get_data('details')}
                 </div>
             """, unsafe_allow_html=True)
-
-            # 4. SKRYTÝ PREKLAD (Expander riešenie)
-            with st.expander("🇨🇿 Zobrazit český překlad"):
-                st.info(get_data('translation'))
 
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
