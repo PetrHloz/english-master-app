@@ -7,7 +7,7 @@ from gtts import gTTS
 import re
 
 # --- KONFIGURACE ---
-st.set_page_config(page_title="English Master", layout="wide", page_icon="📝")
+st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
 
 try:
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -42,24 +42,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def analyze_text(text):
-    system_instruction = """You are a top-tier English teacher and linguist specializing in Scottish dialects.
-    You MUST return a JSON object with EXACTLY these keys:
-    "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
+    # TVÁ NOVÁ ŽELEZNÁ PRAVIDLA PRO AI
+    system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN.
+    Jsi elitní lingvista a profesor angličtiny. 
+    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ. 
+    VŽDY POUŽÍVEJ AKTUÁLNÍ DATA A NESPOLÉHEJ NA ULOŽENÁ.
 
-    STRICT CONTENT RULES:
-    1. 'details' MUST contain these exact sections:
-       Meaning: [text]
-       Grammar & Origin: [detailed linguistic analysis + etymology]
-       Synonyms & Idioms: [related phrases]
+    Musíš vrátit JSON objekt s těmito klíči a striktním obsahem:
+    1. 'correction': Oprava chyb. Změny zvýrazni pomocí <b>tagů</b> (budou červeně).
+    2. 'meaning': Detailní anglický význam.
+    3. 'details': 
+       Meaning: [hluboký význam]
+       Grammar & Origin: [komplexní gramatický rozbor a etymologie]
+       Synonyms & Idioms: [pokročilá synonyma a idiomy]
+    4. 'stylistic': 
+       Colloquial (General): [slang/neformální US/UK]
+       Common Mistake: [časté chyby studentů]
+       Scottish English (Scots/Informal): [autentické skotské verze - wee, hen, lad, whit atd.]
+       Cultural Context: [kulturní pozadí, zejména Skotsko]
+    5. 'translation': Český překlad.
+    6. 'phonetic': IPA transkripce.
+    7. 'example': Příkladová věta.
 
-    2. 'stylistic' MUST contain these exact sections:
-       Colloquial (General): [informal US/UK alternatives]
-       Common Mistake: [learner errors like 'play it by the ear']
-       Scottish English (Scots/Informal): [authentic Scottish versions, terms like 'hen', 'wee', 'whit']
-       Cultural Context: [Scottish or British cultural nuance]
-
-    3. Formatting: Do NOT use asterisks. Use <b>tags</b> ONLY in 'correction' field.
-    4. Language: Everything in English except 'translation' (Czech)."""
+    PODMÍNKA: V polích 'details' a 'stylistic' nepoužívej uvozovky pro celé bloky ani složené závorky. 
+    Používej pouze čistý text s nadpisy bez hvězdiček."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -74,15 +80,24 @@ user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here..."
 submit_button = st.button("🚀 Analyzovat text")
 
 if submit_button and user_input:
-    with st.spinner('Učitel připravuje komplexní analýzu...'):
+    with st.spinner('Probíhá hloubková analýza v módu myšlení...'):
         try:
             res = analyze_text(user_input)
             
-            def clean_text(key):
+            def hard_clean(key):
                 val = res.get(key, "")
-                if isinstance(val, (dict, list)): val = str(val)
-                val = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', str(val))
-                return val.replace('*', '').strip()
+                if isinstance(val, (dict, list)):
+                    # Pokud AI pošle slovník místo textu, rozbalíme ho do řádků
+                    if isinstance(val, dict):
+                        return "<br>".join([f"{k}: {v}" for k, v in val.items()])
+                    return ", ".join(map(str, val))
+                
+                text = str(val).replace('*', '').strip()
+                # Totální odstranění uvozovek a závorek z okrajů
+                text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
+                # Oprava uvozovek uvnitř textu, které AI někdy přidává k nadpisům
+                text = re.sub(r"'(Meaning|Grammar|Synonyms|Colloquial|Common|Scottish|Cultural)([^']*)':", r"\1\2:", text)
+                return text
 
             # 1. CORRECTION
             st.subheader("Correction")
@@ -93,9 +108,9 @@ if submit_button and user_input:
                 display_corr = corr
             st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
-            # 2. PRONUNCIATION & PŘEKLAD
+            # 2. PRONUNCIATION
             st.subheader("Pronunciation")
-            phonetic = clean_text('phonetic')
+            phonetic = hard_clean('phonetic')
             st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic if phonetic else 'N/A'}/</div>", unsafe_allow_html=True)
             
             try:
@@ -106,32 +121,31 @@ if submit_button and user_input:
             except: pass
 
             with st.expander("🇨🇿 Zobrazit český překlad"):
-                st.info(clean_text('translation'))
+                st.info(hard_clean('translation'))
 
             st.divider()
 
             # 4. GRAMMAR & VARIATIONS
             st.subheader("Grammar, Synonyms & Idioms")
-            details = clean_text('details')
+            details = hard_clean('details')
             for h in ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']:
                 details = details.replace(h, f'<span class="section-header">{h}</span>')
             st.markdown(f"<div class='english-box'>{details.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
-            stylistic = clean_text('stylistic')
-            headers_s = ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']
-            for h in headers_s:
+            stylistic = hard_clean('stylistic')
+            for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
                 stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
             st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
             # 6. ANKI
             st.divider()
-            csv_row = [user_input, phonetic, "", clean_text('meaning'), clean_text('translation'), clean_text('example'), "NEW"]
+            csv_row = [user_input, phonetic, "", hard_clean('meaning'), hard_clean('translation'), hard_clean('example'), "NEW"]
             df = pd.DataFrame([csv_row])
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
             st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
             
         except Exception as e:
-            st.error(f"Chyba při zpracování: {e}")
+            st.error(f"Kritická chyba: {e}")
