@@ -10,7 +10,7 @@ import base64
 # --- KONFIGURACE ---
 st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
 
-# Inicializace session_state pro text
+# Inicializace session_state pro OCR text
 if "ocr_text" not in st.session_state:
     st.session_state.ocr_text = ""
 
@@ -40,10 +40,21 @@ def get_ocr_text(image_file):
     return response.choices[0].message.content
 
 def analyze_text(text):
-    """Hlavní analýza se všemi pravidly"""
+    """Hlavní analýza se všemi tvými pravidly"""
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní profesor angličtiny. 
-    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ.
-    Vrať JSON objekt: correction (zvýrazni chyby <b>červeně</b>), meaning, details, stylistic, translation, phonetic, example."""
+    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ. 
+    Vrať JSON objekt s klíči: correction (použij <b>tagy</b> pro chyby), meaning, details, stylistic, translation, phonetic, example.
+    
+    FORMÁT PRO details:
+    Meaning: [text]
+    Grammar & Origin: [text]
+    Synonyms & Idioms: [text]
+    
+    FORMÁT PRO stylistic:
+    Colloquial (General): [text]
+    Common Mistake: [text]
+    Scottish English (Scots/Informal): [text]
+    Cultural Context: [text]"""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -53,13 +64,16 @@ def analyze_text(text):
     return json.loads(response.choices[0].message.content)
 
 def hard_clean(res_dict, key):
+    """Kompletní vyčištění textu od balastu"""
     val = res_dict.get(key, "")
     if isinstance(val, (dict, list)):
         if isinstance(val, dict):
-            val = "<br>".join([f"{k}: {v}" for k, v in val.items()])
+            val = " ".join([f"{k}: {v}" for k, v in val.items()])
         else:
             val = ", ".join(map(str, val))
+    
     text = str(val).replace('*', '').strip()
+    # Odstranění uvozovek a závorek na okrajích
     text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
     return text
 
@@ -83,20 +97,20 @@ st.title("Professional English Master")
 uploaded_file = st.file_uploader("📸 Vyfoťte text / nahrajte obrázek pro OCR", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
-    # Tlačítko pro spuštění OCR
     if st.button("🔍 Vytáhnout text z fotky"):
         with st.spinner('Čtu obrázek...'):
             try:
                 extracted = get_ocr_text(uploaded_file)
+                # Nastavení textu do session_state
                 st.session_state.ocr_text = extracted
-                st.rerun() # Důležité: Překreslí stránku a vloží text do pole
+                st.rerun() 
             except Exception as e:
                 st.error(f"OCR Error: {e}")
 
-# 2. Zadávací pole (propojené se session_state přes 'value')
+# 2. Zadávací pole - KLÍČOVÁ ZMĚNA: key="ocr_text" přímo propojuje widget se session_state
 user_input = st.text_area("Upravte text k analýze:", 
-                          value=st.session_state.ocr_text, 
                           height=150,
+                          key="ocr_text", 
                           placeholder="Text se objeví zde po OCR nebo jej sem napište...")
 
 # Tlačítko analýzy
@@ -130,19 +144,21 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
 
                 st.divider()
 
+                # Grammar & Variations
                 st.subheader("Grammar, Synonyms & Idioms")
                 details = hard_clean(res, 'details')
                 for h in ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']:
                     details = details.replace(h, f'<span class="section-header">{h}</span>')
                 st.markdown(f"<div class='english-box'>{details.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
+                # Dialekty
                 st.subheader("Stylistic & Dialect Corner")
                 stylistic = hard_clean(res, 'stylistic')
                 for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
                     stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
                 st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
-                # Export pro Anki
+                # Anki
                 csv_row = [user_input, phonetic, "", hard_clean(res, 'meaning'), hard_clean(res, 'translation'), res.get('example', ''), "NEW"]
                 df = pd.DataFrame([csv_row])
                 csv_buffer = io.StringIO()
@@ -151,4 +167,3 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 
             except Exception as e:
                 st.error(f"Chyba analýzy: {e}")
-
