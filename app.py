@@ -24,29 +24,33 @@ st.markdown("""
     .correction-box {
         background-color: #f0fdf4; color: #166534 !important;
         padding: 20px; border-radius: 10px; border: 1px solid #bbf7d0;
-        min-height: 150px; font-size: 1.1rem; margin-bottom: 20px;
+        min-height: 150px; font-size: 1.2rem; margin-bottom: 20px;
     }
-    .correction-box b, .correction-box strong { color: #e11d48 !important; font-weight: bold; }
+    /* Červené a tučné zvýraznění opravy */
+    .correction-box b, .correction-box strong { 
+        color: #ff0000 !important; 
+        font-weight: 900 !important; 
+    }
     .phonetic-display { 
         background-color: #f1f5f9; color: #1e293b; 
         padding: 10px; border-radius: 8px; border-left: 5px solid #3b82f6;
-        font-family: 'Courier New', monospace; 
-        font-size: 1.1rem; margin-bottom: 15px;
+        font-family: 'Courier New', monospace; font-size: 1.1rem; margin-bottom: 15px;
     }
-    .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 10px; font-size: 1.1rem; }
+    .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 12px; font-size: 1.1rem; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
-    .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; }
+    .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; height: 3em; }
     </style>
 """, unsafe_allow_html=True)
 
 def analyze_text(text):
-    system_instruction = """You are a top-tier English teacher.
-    Analyze the text and return a JSON object.
+    system_instruction = """You are a professional English teacher. 
+    Analyze the text and return a JSON object with EXACTLY these keys:
+    "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
     
     Rules:
-    - 'correction': If there is a mistake, highlight the corrected parts using <b>bold tags</b>.
-    - 'details' & 'stylistic': Use plain text headers (e.g. Meaning:) without asterisks. 
-    - Ensure 'details' and 'stylistic' are returned as strings, not nested objects."""
+    - 'correction': Use <b>tags</b> to highlight corrected parts in RED.
+    - 'details' & 'stylistic': Use plain headers like 'Meaning:', 'Grammar & Origin:', etc. No asterisks.
+    - Return ONLY pure JSON."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -61,19 +65,16 @@ user_input = st.text_area("Zadejte text k analýze:", placeholder="Type here..."
 submit_button = st.button("🚀 Analyzovat text")
 
 if submit_button and user_input:
-    with st.spinner('Analyzuji...'):
+    with st.spinner('Učitel přemýšlí...'):
         try:
             res = analyze_text(user_input)
             
-            def clean_format(key):
-                data = res.get(key, "")
-                if isinstance(data, dict):
-                    # Převod slovníku na čitelný text, pokud AI pošle objekt
-                    return "<br>".join([f"{k}: {v}" for k, v in data.items()])
-                text = str(data).replace('*', '').strip()
-                # Vyčištění případných zbytků JSON formátu
-                text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
-                return text
+            def clean_text(key):
+                val = res.get(key, "")
+                if isinstance(val, (dict, list)): val = str(val)
+                # Odstraní ošklivé závorky a uvozovky na začátku/konci
+                val = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', str(val))
+                return val.replace('*', '').strip()
 
             # 1. CORRECTION
             st.subheader("Correction")
@@ -86,7 +87,7 @@ if submit_button and user_input:
 
             # 2. PRONUNCIATION
             st.subheader("Pronunciation")
-            phonetic = clean_format('phonetic')
+            phonetic = clean_text('phonetic')
             st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic if phonetic else 'N/A'}/</div>", unsafe_allow_html=True)
             
             tts = gTTS(text=user_input, lang='en', tld='co.uk')
@@ -94,33 +95,28 @@ if submit_button and user_input:
             tts.write_to_fp(audio_fp)
             st.audio(audio_fp, format='audio/mp3')
 
-            # 3. PŘEKLAD
             with st.expander("🇨🇿 Zobrazit český překlad"):
-                st.info(clean_format('translation'))
+                st.info(clean_text('translation'))
 
             st.divider()
 
             # 4. GRAMMAR & VARIATIONS
             st.subheader("Grammar, Synonyms & Idioms")
-            details = clean_format('details')
-            headers = ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']
-            for h in headers:
+            details = clean_text('details')
+            for h in ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']:
                 details = details.replace(h, f'<span class="section-header">{h}</span>')
-            
             st.markdown(f"<div class='english-box'>{details.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
             # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
-            stylistic = clean_format('stylistic')
-            headers_s = ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']
-            for h in headers_s:
+            stylistic = clean_text('stylistic')
+            for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
                 stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
-            
             st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
-            # 6. ANKI
+            # 6. ANKI EXPORT
             st.divider()
-            csv_row = [user_input, phonetic, "", clean_format('meaning'), clean_format('translation'), clean_format('example'), "NEW"]
+            csv_row = [user_input, phonetic, "", clean_text('meaning'), clean_text('translation'), clean_text('example'), "NEW"]
             df = pd.DataFrame([csv_row])
             csv_buffer = io.StringIO()
             df.to_csv(csv_buffer, index=False, header=False, sep=";")
