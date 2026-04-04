@@ -102,7 +102,7 @@ st.markdown("""
 st.title("Professional English Master PRO")
 
 # OCR Vstup
-st.file_uploader("📸 Vyfoťte text nebo nahrajte obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload)
+st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload)
 
 # Zadávací pole
 user_input = st.text_area("Upravte text k analýze:", value=st.session_state.ocr_text, height=150)
@@ -122,7 +122,7 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 # 2. PRONUNCIATION
                 st.subheader("Pronunciation")
                 phon = str(res.get('phonetic', 'N/A')).replace('*', '')
-                st.markdown(f"<div class='phonetic-display'>IPA: /{phon}/</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='phonetic-display'>/{phon}/</div>", unsafe_allow_html=True)
                 
                 tts = gTTS(text=user_input, lang='en', tld='co.uk')
                 audio_fp = io.BytesIO()
