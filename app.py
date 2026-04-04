@@ -70,7 +70,7 @@ if submit_button and user_input:
             # 2. PRONUNCIATION
             st.subheader("Pronunciation")
             phonetic = get_data('phonetic')
-            st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='phonetic-display'>/{phonetic}/</div>", unsafe_allow_html=True)
             
             try:
                 tts = gTTS(text=user_input, lang='en', tld='co.uk')
