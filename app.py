@@ -10,45 +10,39 @@ import base64
 # --- KONFIGURACE ---
 st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
 
-# Inicializace paměti (session state) pro text
-if "user_text" not in st.session_state:
-    st.session_state.user_text = ""
+# Inicializace session_state pro text
+if "ocr_text" not in st.session_state:
+    st.session_state.ocr_text = ""
 
 try:
     api_key = st.secrets.get("OPENAI_API_KEY")
-    if not api_key:
-        st.error("⚠️ API key missing in Streamlit Secrets!")
-    else:
-        client = openai.OpenAI(api_key=api_key)
-except Exception as e:
-    st.error(f"⚠️ Configuration error: {e}")
+    client = openai.OpenAI(api_key=api_key)
+except:
+    st.error("⚠️ API key error v Secrets!")
 
-# --- POMOCNÉ FUNKCE ---
+# --- FUNKCE ---
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
-def get_text_from_image(image_file):
-    """Funkce pouze pro OCR - vytáhne text z obrázku."""
+def get_ocr_text(image_file):
+    """Vytáhne text z fotky přes Vision API"""
     base64_img = encode_image(image_file)
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract all English text from this image. Return ONLY the extracted text, no commentary."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
-                ]
-            }
-        ],
-        max_tokens=500
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Read the English text from this image and return it as raw text. No intro, no outro."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
+            ]
+        }]
     )
     return response.choices[0].message.content
 
 def analyze_text(text):
-    """Hlavní analýza textu podle tvých železných pravidel."""
+    """Hlavní analýza se všemi pravidly"""
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní profesor angličtiny. 
-    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ. 
+    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ.
     Vrať JSON objekt: correction (zvýrazni chyby <b>červeně</b>), meaning, details, stylistic, translation, phonetic, example."""
     
     response = client.chat.completions.create(
@@ -85,38 +79,36 @@ st.markdown("""
 # --- UI ---
 st.title("Professional English Master")
 
-# 1. Nahrávání souboru (pokud se nahraje, přepíše session_state)
-img_file = st.file_uploader("📸 Vyfoťte text / nahrajte obrázek pro OCR", type=["jpg", "jpeg", "png"])
+# 1. OCR sekce
+uploaded_file = st.file_uploader("📸 Vyfoťte text / nahrajte obrázek pro OCR", type=["jpg", "jpeg", "png"])
 
-if img_file:
-    with st.spinner('Čtu text z obrázku...'):
-        try:
-            # Vytáhneme text a uložíme do paměti
-            extracted_text = get_text_from_image(img_file)
-            st.session_state.user_text = extracted_text
-            st.success("Text byl úspěšně načten z obrázku. Nyní jej můžete upravit níže.")
-        except Exception as e:
-            st.error(f"Chyba při čtení obrázku: {e}")
+if uploaded_file:
+    # Tlačítko pro spuštění OCR
+    if st.button("🔍 Vytáhnout text z fotky"):
+        with st.spinner('Čtu obrázek...'):
+            try:
+                extracted = get_ocr_text(uploaded_file)
+                st.session_state.ocr_text = extracted
+                st.rerun() # Důležité: Překreslí stránku a vloží text do pole
+            except Exception as e:
+                st.error(f"OCR Error: {e}")
 
-# 2. Textová oblast (bere si hodnotu ze session_state)
-user_input = st.text_area("Zadaný text k analýze:", 
-                          value=st.session_state.user_text, 
-                          placeholder="Type or use image upload above...", 
+# 2. Zadávací pole (propojené se session_state přes 'value')
+user_input = st.text_area("Upravte text k analýze:", 
+                          value=st.session_state.ocr_text, 
                           height=150,
-                          key="main_input")
+                          placeholder="Text se objeví zde po OCR nebo jej sem napište...")
 
-# Tlačítko pro analýzu (pracuje s tím, co je aktuálně v poli)
-submit_button = st.button("🚀 Spustit hloubkovou analýzu")
-
-if submit_button:
+# Tlačítko analýzy
+if st.button("🚀 Spustit hloubkovou analýzu"):
     if not user_input:
-        st.warning("Pole pro text je prázdné.")
+        st.warning("Pole pro text je prázdné!")
     else:
-        with st.spinner('Učitel přemýšlí...'):
+        with st.spinner('Analyzuji v módu myšlení...'):
             try:
                 res = analyze_text(user_input)
                 
-                # Zobrazení výsledků
+                # --- VÝSLEDKY ---
                 st.subheader("Correction")
                 corr = res.get('correction', '')
                 display_corr = corr if corr and corr.lower() != user_input.lower() else f"✅ Your text is correct: {user_input}"
@@ -158,4 +150,5 @@ if submit_button:
                 st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
                 
             except Exception as e:
-                st.error(f"Kritická chyba: {e}")
+                st.error(f"Chyba analýzy: {e}")
+
