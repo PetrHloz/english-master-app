@@ -8,9 +8,9 @@ import re
 import base64
 
 # --- KONFIGURACE ---
-st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
+st.set_page_config(page_title="English Master PRO", layout="wide", page_icon="📝")
 
-# Inicializace session_state pro OCR text
+# Inicializace session_state
 if "ocr_text" not in st.session_state:
     st.session_state.ocr_text = ""
 
@@ -18,43 +18,39 @@ try:
     api_key = st.secrets.get("OPENAI_API_KEY")
     client = openai.OpenAI(api_key=api_key)
 except:
-    st.error("⚠️ API key error v Secrets!")
+    st.error("⚠️ API key error!")
 
 # --- FUNKCE ---
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
 def get_ocr_text(image_file):
-    """Vytáhne text z fotky přes Vision API"""
+    """Vytáhne text z fotky s pojistkou proti 'I'm sorry'."""
     base64_img = encode_image(image_file)
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Read the English text from this image and return it as raw text. No intro, no outro."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
-            ]
-        }]
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Striktně vypiš veškerý anglický text z tohoto obrázku. Pokud tam není text, vrať prázdný řetězec. Neodpovídej žádnou omluvou ani komentářem, jen čistým textem."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
+                ]
+            }],
+            max_tokens=1000
+        )
+        txt = response.choices[0].message.content
+        # Pokud se AI začne omlouvat, vyfiltrujeme to
+        if "sorry" in txt.lower() or "apologize" in txt.lower():
+            return "Chyba: AI odmítla text přečíst. Zkuste jiný úhel fotky."
+        return txt
+    except Exception as e:
+        return f"Chyba spojení: {str(e)}"
 
 def analyze_text(text):
-    """Hlavní analýza se všemi tvými pravidly"""
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní profesor angličtiny. 
-    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ. 
-    Vrať JSON objekt s klíči: correction (použij <b>tagy</b> pro chyby), meaning, details, stylistic, translation, phonetic, example.
-    
-    FORMÁT PRO details:
-    Meaning: [text]
-    Grammar & Origin: [text]
-    Synonyms & Idioms: [text]
-    
-    FORMÁT PRO stylistic:
-    Colloquial (General): [text]
-    Common Mistake: [text]
-    Scottish English (Scots/Informal): [text]
-    Cultural Context: [text]"""
+    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ.
+    Vrať JSON: correction (bold red tags for errors), meaning, details, stylistic, translation, phonetic, example."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -64,16 +60,10 @@ def analyze_text(text):
     return json.loads(response.choices[0].message.content)
 
 def hard_clean(res_dict, key):
-    """Kompletní vyčištění textu od balastu"""
     val = res_dict.get(key, "")
     if isinstance(val, (dict, list)):
-        if isinstance(val, dict):
-            val = " ".join([f"{k}: {v}" for k, v in val.items()])
-        else:
-            val = ", ".join(map(str, val))
-    
+        val = str(val)
     text = str(val).replace('*', '').strip()
-    # Odstranění uvozovek a závorek na okrajích
     text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
     return text
 
@@ -85,7 +75,6 @@ st.markdown("""
     .correction-box b, .correction-box strong { color: #ff0000 !important; font-weight: 900 !important; }
     .phonetic-display { background-color: #f1f5f9; color: #1e293b; padding: 10px; border-radius: 8px; border-left: 5px solid #3b82f6; font-family: 'Courier New', monospace; font-size: 1.1rem; margin-bottom: 15px; }
     .section-header { font-weight: bold; color: #1e3a8a; display: block; margin-top: 12px; font-size: 1.1rem; }
-    h3 { color: #1e3a8a !important; margin-top: 20px; }
     .stButton>button { width: 100%; background-color: #3b82f6; color: white; border-radius: 8px; font-weight: bold; height: 3em; }
     </style>
 """, unsafe_allow_html=True)
@@ -93,41 +82,40 @@ st.markdown("""
 # --- UI ---
 st.title("Professional English Master")
 
-# 1. OCR sekce
-uploaded_file = st.file_uploader("📸 Vyfoťte text / nahrajte obrázek pro OCR", type=["jpg", "jpeg", "png"])
+# Automatické OCR při nahrání
+uploaded_file = st.file_uploader("📸 Vyfoťte text nebo nahrajte obrázek", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
-    if st.button("🔍 Vytáhnout text z fotky"):
-        with st.spinner('Čtu obrázek...'):
-            try:
-                extracted = get_ocr_text(uploaded_file)
-                # Nastavení textu do session_state
-                st.session_state.ocr_text = extracted
-                st.rerun() 
-            except Exception as e:
-                st.error(f"OCR Error: {e}")
+    # Kontrola, jestli jsme tenhle soubor už nezpracovali
+    file_id = uploaded_file.name + str(uploaded_file.size)
+    if st.session_state.get("last_file") != file_id:
+        with st.spinner('Automaticky čtu text z fotky...'):
+            extracted = get_ocr_text(uploaded_file)
+            st.session_state.ocr_text = extracted
+            st.session_state.last_file = file_id
+            st.rerun()
 
-# 2. Zadávací pole - KLÍČOVÁ ZMĚNA: key="ocr_text" přímo propojuje widget se session_state
+# Hlavní zadávací pole
 user_input = st.text_area("Upravte text k analýze:", 
-                          height=150,
-                          key="ocr_text", 
-                          placeholder="Text se objeví zde po OCR nebo jej sem napište...")
+                          value=st.session_state.ocr_text, 
+                          height=150, 
+                          key="main_input")
 
-# Tlačítko analýzy
 if st.button("🚀 Spustit hloubkovou analýzu"):
-    if not user_input:
-        st.warning("Pole pro text je prázdné!")
+    if not user_input or "Chyba:" in user_input:
+        st.warning("Zadejte platný text.")
     else:
         with st.spinner('Analyzuji v módu myšlení...'):
             try:
                 res = analyze_text(user_input)
                 
-                # --- VÝSLEDKY ---
+                # Correction
                 st.subheader("Correction")
                 corr = res.get('correction', '')
-                display_corr = corr if corr and corr.lower() != user_input.lower() else f"✅ Your text is correct: {user_input}"
+                display_corr = corr if corr and corr.lower() != user_input.lower() else f"✅ Correct: {user_input}"
                 st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
+                # Pronunciation & Audio
                 st.subheader("Pronunciation")
                 phonetic = hard_clean(res, 'phonetic')
                 st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
@@ -139,24 +127,26 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                     st.audio(audio_fp, format='audio/mp3')
                 except: pass
 
-                with st.expander("🇨🇿 Zobrazit český překlad"):
+                with st.expander("🇨🇿 Český překlad"):
                     st.info(hard_clean(res, 'translation'))
 
                 st.divider()
 
-                # Grammar & Variations
-                st.subheader("Grammar, Synonyms & Idioms")
-                details = hard_clean(res, 'details')
-                for h in ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']:
-                    details = details.replace(h, f'<span class="section-header">{h}</span>')
-                st.markdown(f"<div class='english-box'>{details.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
+                # Detaily
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("Grammar & Synonyms")
+                    d = hard_clean(res, 'details')
+                    for h in ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:']:
+                        d = d.replace(h, f'<span class="section-header">{h}</span>')
+                    st.markdown(f"<div class='english-box'>{d}</div>", unsafe_allow_html=True)
 
-                # Dialekty
-                st.subheader("Stylistic & Dialect Corner")
-                stylistic = hard_clean(res, 'stylistic')
-                for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
-                    stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
-                st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
+                with col2:
+                    st.subheader("Style & Dialects")
+                    s = hard_clean(res, 'stylistic')
+                    for h in ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:']:
+                        s = s.replace(h, f'<span class="section-header">{h}</span>')
+                    st.markdown(f"<div class='dialect-box'>{s}</div>", unsafe_allow_html=True)
 
                 # Anki
                 csv_row = [user_input, phonetic, "", hard_clean(res, 'meaning'), hard_clean(res, 'translation'), res.get('example', ''), "NEW"]
@@ -166,4 +156,4 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 st.download_button("📥 Export for Anki", csv_buffer.getvalue(), "anki_export.csv", "text/csv")
                 
             except Exception as e:
-                st.error(f"Chyba analýzy: {e}")
+                st.error(f"Chyba: {e}")
