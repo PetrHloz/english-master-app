@@ -11,9 +11,14 @@ import base64
 st.set_page_config(page_title="Professional English Master", layout="wide", page_icon="📝")
 
 try:
-    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-except Exception:
-    st.error("⚠️ API key missing!")
+    # Kontrola, zda klíč vůbec existuje
+    api_key = st.secrets.get("OPENAI_API_KEY")
+    if not api_key:
+        st.error("⚠️ API key missing in Streamlit Secrets!")
+    else:
+        client = openai.OpenAI(api_key=api_key)
+except Exception as e:
+    st.error(f"⚠️ Configuration error: {e}")
 
 # --- POMOCNÉ FUNKCE ---
 def encode_image(image_file):
@@ -46,19 +51,8 @@ st.markdown("""
 # --- ANALÝZA ---
 def analyze_content(user_text=None, image_file=None):
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní profesor angličtiny. 
-    STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ, NIKDY SI NEVYMÝŠLEJ. 
-    VŽDY POUŽÍVEJ AKTUÁLNÍ DATA.
-    
-    Pokud dostaneš obrázek, nejdříve z něj precizně extrahuj text.
-    Vrať JSON objekt:
-    1. 'correction': Oprava chyb. Změny zvýrazni <b>tučně a budou červeně</b>.
-    2. 'meaning': Detailní anglický význam.
-    3. 'details': Meaning: [text], Grammar & Origin: [text], Synonyms & Idioms: [text].
-    4. 'stylistic': Colloquial (General): [text], Common Mistake: [text], Scottish English (Scots/Informal): [text], Cultural Context: [text].
-    5. 'translation': Český překlad.
-    6. 'phonetic': IPA transkripce.
-    7. 'example': Příkladová věta.
-    8. 'original_text': Extrahovaný text (pouze u obrázků)."""
+    STRIKTNĚ SE DRŽ ZADÁNÍ. Pokud dostaneš obrázek, nejdříve z něj precizně extrahuj text.
+    Vrať JSON objekt: correction (zvýrazni chyby <b>červeně</b>), meaning, details, stylistic, translation, phonetic, example, original_text."""
 
     messages = [{"role": "system", "content": system_instruction}]
     
@@ -75,7 +69,7 @@ def analyze_content(user_text=None, image_file=None):
         messages.append({"role": "user", "content": user_text})
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o", # Model s podporou Vision
         messages=messages,
         response_format={ "type": "json_object" }
     )
@@ -84,26 +78,22 @@ def analyze_content(user_text=None, image_file=None):
 # --- UI ---
 st.title("Professional English Master")
 
-# Primární vstup je text
 user_input = st.text_area("Zadejte text k analýze:", placeholder="Type or paste here...", height=150)
-
-# Volitelný vstup je obrázek/foto
-img_file = st.file_uploader("Nebo vyfoťte text / nahrajte obrázek", type=["jpg", "jpeg", "png"])
+img_file = st.file_uploader("Nebo vyfoťte text (podporuje JPG, PNG)", type=["jpg", "jpeg", "png"])
 
 if img_file:
-    st.image(img_file, caption="Snímek k analýze", use_container_width=True, width=300)
+    st.image(img_file, caption="Snímek k analýze", width=300)
 
 submit_button = st.button("🚀 Spustit hloubkovou analýzu")
 
 if submit_button:
     if not user_input and not img_file:
-        st.warning("Prosím zadejte text nebo nahrajte obrázek.")
+        st.warning("Prosím vložte text nebo obrázek.")
     else:
-        with st.spinner('Probíhá analýza v módu myšlení...'):
+        with st.spinner('Probíhá hloubková analýza...'):
             try:
                 res = analyze_content(user_text=user_input, image_file=img_file)
                 
-                # Zjištění, který text použít pro audio a export (priorita má obrázek, pak text)
                 source_text = res.get('original_text', user_input) if img_file else user_input
 
                 # 1. CORRECTION
@@ -146,8 +136,7 @@ if submit_button:
                     stylistic = stylistic.replace(h, f'<span class="section-header">{h}</span>')
                 st.markdown(f"<div class='dialect-box'>{stylistic.replace('\\n', '<br>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 
-                # 6. ANKI EXPORT
-                st.divider()
+                # 6. ANKI
                 csv_row = [source_text, phonetic, "", hard_clean(res, 'meaning'), hard_clean(res, 'translation'), res.get('example', ''), "NEW"]
                 df = pd.DataFrame([csv_row])
                 csv_buffer = io.StringIO()
