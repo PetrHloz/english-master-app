@@ -39,15 +39,14 @@ st.markdown("""
 
 def analyze_text(text):
     system_instruction = """You are a top-tier English teacher and linguist.
-    Analyze the text and return a JSON object with EXACTLY these keys:
-    "original", "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
-
-    Rules for the 'details' field:
-    Create three distinct sections using Markdown:
-    1) **Meaning**: Clear and concise definition.
-    2) **Grammar & Origin**: Analyze sentence structure (e.g., pronouns, phrasal verbs, parts of speech) and explain the etymological origin of the phrase.
-    3) **Synonyms & Idioms**: List related synonyms and similar idiomatic expressions.
+    Analyze the text and return a JSON object.
     
+    Rules for the 'details' field:
+    Always use this EXACT Markdown format for consistency:
+    **Meaning**: [definition]
+    **Grammar & Origin**: [analysis]
+    **Synonyms & Idioms**: [list]
+
     'translation' MUST be only in Czech."""
     
     response = client.chat.completions.create(
@@ -68,7 +67,8 @@ if submit_button and user_input:
             res = analyze_text(user_input)
             
             def get_data(key):
-                return res.get(key, "Information not available")
+                val = res.get(key, "")
+                return val if val else "Information not available"
 
             # 1. CORRECTION
             st.subheader("Correction")
@@ -93,11 +93,13 @@ if submit_button and user_input:
 
             st.divider()
 
-            # 4. GRAMMAR, SYNONYMS & IDIOMS (Nyní s novou strukturou)
+            # 4. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
+            # Odstranění nadbytečných mezer a sjednocení
+            details_content = get_data('details').replace('\n\n', '<br>').replace('\n', '<br>')
             st.markdown(f"""
                 <div class='english-box'>
-                    {get_data('details')}
+                    {details_content}
                 </div>
             """, unsafe_allow_html=True)
 
