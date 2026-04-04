@@ -5,7 +5,7 @@ import pandas as pd
 import io
 from gtts import gTTS
 
-# --- KONFIGURACE ---
+# --- KONFIGURÁCIA ---
 st.set_page_config(page_title="English Master", layout="wide", page_icon="📝")
 
 try:
@@ -20,12 +20,17 @@ st.markdown("""
         background-color: #ffffff; color: #1a202c !important; 
         padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;
     }
+    /* Pole Correction - upravené podľa zadávacieho poľa */
+    .correction-box {
+        background-color: #f0fdf4; color: #166534 !important;
+        padding: 20px; border-radius: 10px; border: 1px solid #bbf7d0;
+        min-height: 150px; font-size: 1.1rem; margin-bottom: 20px;
+    }
     .phonetic-display { 
         background-color: #f1f5f9; color: #1e293b; 
         padding: 10px; border-radius: 8px; border-left: 5px solid #3b82f6;
         font-family: 'Courier New', monospace; 
-        font-size: 1.1rem; /* ZDE ZMENŠENO O 2 BODY */
-        margin-bottom: 15px;
+        font-size: 1.1rem; margin-bottom: 15px;
     }
     .english-box * { color: #1a202c !important; }
     h3 { color: #1e3a8a !important; margin-top: 20px; }
@@ -37,12 +42,7 @@ def analyze_text(text):
     system_instruction = """You are a top-tier English teacher and linguist.
     Analyze the text and return a JSON object with EXACTLY these keys:
     "original", "correction", "meaning", "details", "stylistic", "translation", "phonetic", "example".
-
-    Rules:
-    - 'translation' MUST be only in Czech.
-    - 'details' MUST contain grammar notes, synonyms, and idioms in English.
-    - 'stylistic' MUST focus on Scottish English or register.
-    - Use Markdown for bolding keywords."""
+    'translation' MUST be only in Czech."""
     
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -64,7 +64,11 @@ if submit_button and user_input:
             def get_data(key):
                 return res.get(key, "Information not available")
 
-            # 1. Výslovnost (Zmenšený font)
+            # 1. CORRECTION (Presunuté nad výslovnosť, veľké ako input)
+            st.subheader("Correction")
+            st.markdown(f"<div class='correction-box'>{get_data('correction')}</div>", unsafe_allow_html=True)
+
+            # 2. PRONUNCIATION
             st.subheader("Pronunciation")
             phonetic = get_data('phonetic')
             st.markdown(f"<div class='phonetic-display'>IPA: /{phonetic}/</div>", unsafe_allow_html=True)
@@ -79,16 +83,7 @@ if submit_button and user_input:
 
             st.divider()
 
-            # 2. Oprava a Překlad
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader("Correction")
-                st.success(get_data('correction'))
-            with c2:
-                st.subheader("🇨🇿 Překlad")
-                st.info(get_data('translation'))
-
-            # 3. Gramatika, Synonyma, Idiomy
+            # 3. GRAMMAR, SYNONYMS & IDIOMS
             st.subheader("Grammar, Synonyms & Idioms")
             st.markdown(f"""
                 <div class='english-box'>
@@ -97,11 +92,15 @@ if submit_button and user_input:
                 </div>
             """, unsafe_allow_html=True)
 
-            # 4. Dialekty
+            # 4. SKRYTÝ PREKLAD (Expander riešenie)
+            with st.expander("🇨🇿 Zobrazit český překlad"):
+                st.info(get_data('translation'))
+
+            # 5. DIALEKTY
             st.subheader("Stylistic & Dialect Corner")
             st.markdown(f"<div class='dialect-box'>{get_data('stylistic')}</div>", unsafe_allow_html=True)
 
-            # 5. Anki
+            # 6. ANKI
             st.divider()
             csv_row = [user_input, phonetic, "", get_data('meaning'), get_data('translation'), get_data('example'), "NEW"]
             df = pd.DataFrame([csv_row])
