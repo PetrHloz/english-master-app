@@ -102,7 +102,7 @@ st.markdown("""
 # --- UI ROZHRANÍ ---
 # st.title("Professional English Master PRO")
 # Místo st.title("Professional English Master PRO") použijte:
-st.markdown("<h1 style='font-size: 1.8rem;'>Professional English Master PRO</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='font-size: 2rem;'>Professional English Master PRO</h1>", unsafe_allow_html=True)
 
 
 # OCR Vstup
