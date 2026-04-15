@@ -105,8 +105,7 @@ st.title("Professional English Master PRO")
 st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload)
 
 # Zadávací pole
-user_input = st.text_area("Upravte text k analýze:", value=st.session_state.ocr_text, height=150)
-
+user_input = st.text_area("Upravte text k analýze:", value=st.session_state.ocr_text, height=100)
 if st.button("🚀 Spustit hloubkovou analýzu"):
     if user_input:
         with st.spinner('Učitel analyzuje v módu myšlení...'):
