@@ -100,7 +100,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- UI ROZHRANÍ ---
-st.title("Professional English Master PRO")
+# st.title("Professional English Master PRO")
+# Místo st.title("Professional English Master PRO") použijte:
+st.markdown("<h1 style='font-size: 2rem;'>Professional English Master PRO</h1>", unsafe_allow_html=True)
+
 
 # OCR Vstup
 st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload,label_visibility="collapsed")
