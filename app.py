@@ -94,7 +94,7 @@ st.markdown("""
         margin-top: 15px; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; 
         padding-bottom: 3px; margin-bottom: 8px;
     }
-    .stButton>button { width: 100%; background-color: #3b82f6; color: white; height: 3.5em; font-weight: bold; }
+    .stButton>button { width: 100%; background-color: #3b82f6; color: white; height: 2.5em; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
