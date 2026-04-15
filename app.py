@@ -74,16 +74,6 @@ def clean_output(text, headers):
 # --- CSS STYLING ---
 st.markdown("""
     <style>
-    /* Zmenšení výšky boxu pro nahrávání souborů */
-.stFileUploader section {
-    padding: 0;
-    min-height: 80px;
-}
-/* Zmenšení textu uvnitř boxu (Drop files here) */
-.stFileUploader section div div {
-    font-size: 0.8rem;
-}
-
     .english-box, .dialect-box { 
         background-color: #ffffff; color: #1a202c !important; 
         padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; 
@@ -112,7 +102,7 @@ st.markdown("""
 st.title("Professional English Master PRO")
 
 # OCR Vstup
-st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload)
+st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload,label_visibility="collapsed")
 
 # Zadávací pole
 user_input = st.text_area("Upravte text k analýze:", value=st.session_state.ocr_text, height=100)
