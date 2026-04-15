@@ -74,15 +74,27 @@ def clean_output(text, headers):
 # --- CSS STYLING ---
 st.markdown("""
     <style>
-    /* Zmenšení výšky boxu pro nahrávání souborů */
-.stFileUploader section {
+ /* Agresivní zmenšení nahrávacího boxu */
+[data-testid="stFileUploader"] {
+    padding-bottom: 0;
+}
+
+[data-testid="stFileUploader"] section {
+    padding: 0.5rem 1rem;
+    min-height: 0px;
+}
+
+/* Zmenšení ikony a textu "Drag and drop file here" */
+[data-testid="stFileUploader"] section div div {
+    margin: 0;
     padding: 0;
-    min-height: 80px;
 }
-/* Zmenšení textu uvnitř boxu (Drop files here) */
-.stFileUploader section div div {
-    font-size: 0.8rem;
+
+/* Skrytí nápisu "Limit 200MB per file", aby box nebyl tak vysoký */
+[data-testid="stFileUploader"] small {
+    display: none;
 }
+
 
     .english-box, .dialect-box { 
         background-color: #ffffff; color: #1a202c !important; 
