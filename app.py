@@ -124,14 +124,25 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
                 # 2. PRONUNCIATION
+                     # 2. PRONUNCIATION
                 st.subheader("Pronunciation")
                 phon = str(res.get('phonetic', 'N/A')).replace('*', '')
                 st.markdown(f"<div class='phonetic-display'>/{phon}/</div>", unsafe_allow_html=True)
                 
-                tts = gTTS(text=user_input, lang='en', tld='co.uk')
+                # --- OPRAVA AUDIA ---
+                # Vyčistíme opravený text od HTML tagů (<b>, </b> atd.), aby to robot nečetl
+                clean_corr_text = re.sub(r'<[^>]+>', '', corr) if corr else user_input
+                
+                # Pokud by náhodou oprava byla prázdná, použijeme původní vstup
+                if not clean_corr_text.strip():
+                    clean_corr_text = user_input
+                
+                # Pošleme do gTTS vyčištěný opravený text
+                tts = gTTS(text=clean_corr_text, lang='en', tld='co.uk')
                 audio_fp = io.BytesIO()
                 tts.write_to_fp(audio_fp)
                 st.audio(audio_fp, format='audio/mp3')
+ 
 
                 with st.expander("🇨🇿 Zobrazit český překlad"):
                     st.info(res.get('translation', 'N/A'))
