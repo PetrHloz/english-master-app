@@ -63,6 +63,15 @@ def analyze_text(text):
     )
     return json.loads(response.choices[0].message.content)
 
+def clean_output(text, headers):
+    text = str(text).replace('*', '').strip()
+    text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
+    for h in headers:
+        pattern = rf'["\']?{re.escape(h)}["\']?'
+        text = re.sub(pattern, f'<span class="section-header">{h}</span>', text)
+    return text.replace('\n', '<br>')
+
+
 # --- CSS STYLING ---
 st.markdown("""
     <style>
