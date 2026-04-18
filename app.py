@@ -47,8 +47,8 @@ def process_upload():
 def analyze_text(text):
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní lingvista. STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ.
     Vrať JSON objekt s těmito klíči:
-    "correction": [text s <b>červenými tagy</b> pro chyby],
-    "meaning": [stručný význam],
+    "correction": "[CELÝ opravený text. Chybné slovo nebo frázi NAHRAĎ správnou verzí a POUZE tuto novou, správnou verzi obal do tagu <b> (např. 'This is the <b>corrected</b> word.')]",
+    "meaning": "[stručný význam]",
     "details": "Meaning: [hluboký rozbor]\\nGrammar & Origin: [komplexní gramatika a etymologie]\\nSynonyms & Idioms: [seznam]",
     "stylistic": "Colloquial (General): [US/UK slang]\\nCommon Mistake: [chyby]\\nScottish English (Scots/Informal): [autentické skotské verze]\\nCultural Context: [skotský/britský kontext]",
     "translation": [česky],
@@ -62,14 +62,6 @@ def analyze_text(text):
         response_format={ "type": "json_object" }
     )
     return json.loads(response.choices[0].message.content)
-
-def clean_output(text, headers):
-    text = str(text).replace('*', '').strip()
-    text = re.sub(r'^[{\s"\']+|[}\s"\']+$', '', text)
-    for h in headers:
-        pattern = rf'["\']?{re.escape(h)}["\']?'
-        text = re.sub(pattern, f'<span class="section-header">{h}</span>', text)
-    return text.replace('\n', '<br>')
 
 # --- CSS STYLING ---
 st.markdown("""
