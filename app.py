@@ -45,9 +45,10 @@ def process_upload():
 
 # --- ANALÝZA (HLOUBKOVÝ MÓD MYŠLENÍ) ---
 def analyze_text(text):
+    # ZMĚNA: Přísnější instrukce pro pole "correction"
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní lingvista. STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ.
     Vrať JSON objekt s těmito klíči:
-    "correction": "[CELÝ opravený text. Chybné slovo nebo frázi NAHRAĎ správnou verzí a POUZE tuto novou, správnou verzi obal do tagu <b> (např. 'This is the <b>corrected</b> word.')]",
+    "correction": "[Vrať POUZE a JENOM zadané slovo nebo frázi. Pokud obsahuje chybu, oprav ji a obal ZMĚNĚNOU část do tagu <b> (např. '<b>corrected</b> word'). ABSOLUTNÍ ZÁKAZ přidávat jakýkoliv jiný text, komentáře typu 'Text neobsahuje chyby' nebo vysvětlování! Pokud je vstup správně, vrať pouze původní vstup.]",
     "meaning": "[stručný význam]",
     "details": "Meaning: [hluboký rozbor]\\nGrammar & Origin: [komplexní gramatika a etymologie]\\nSynonyms & Idioms: [seznam]",
     "stylistic": "Colloquial (General): [US/UK slang]\\nCommon Mistake: [chyby]\\nScottish English (Scots/Informal): [autentické skotské verze]\\nCultural Context: [skotský/britský kontext]",
@@ -101,10 +102,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- UI ROZHRANÍ ---
-# st.title("Professional English Master PRO")
-# Místo st.title("Professional English Master PRO") použijte:
 st.markdown("<h1 style='font-size: 1.5rem;'>Professional English Master PRO</h1>", unsafe_allow_html=True)
-
 
 # OCR Vstup
 st.file_uploader("📸 nahraj obrázek", type=["jpg", "jpeg", "png"], key="upload_key", on_change=process_upload,label_visibility="collapsed")
@@ -119,42 +117,43 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 
                 # 1. CORRECTION (Hned pod tlačítkem)
                 st.subheader("Correction")
-                corr = res.get('correction', '')
-                display_corr = corr if corr and corr.lower() != user_input.lower() else f"✅ Correct: {user_input}"
+                corr = res.get('correction', '').strip()
+                
+                # ZMĚNA: Kontrolujeme přímo přítomnost tagu <b>, což je náš indikátor provedené opravy
+                if '<b>' in corr.lower():
+                    display_corr = corr
+                else:
+                    display_corr = f"✅ Correct: {user_input}"
+                    
                 st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
 
                 # 2. PRONUNCIATION
-                     # 2. PRONUNCIATION
                 st.subheader("Pronunciation")
                 phon = str(res.get('phonetic', 'N/A')).replace('*', '')
                 st.markdown(f"<div class='phonetic-display'>/{phon}/</div>", unsafe_allow_html=True)
                 
                 # --- OPRAVA AUDIA ---
-                # Vyčistíme opravený text od HTML tagů (<b>, </b> atd.), aby to robot nečetl
                 clean_corr_text = re.sub(r'<[^>]+>', '', corr) if corr else user_input
                 
-                # Pokud by náhodou oprava byla prázdná, použijeme původní vstup
                 if not clean_corr_text.strip():
                     clean_corr_text = user_input
                 
-                # Pošleme do gTTS vyčištěný opravený text
                 tts = gTTS(text=clean_corr_text, lang='en', tld='co.uk')
                 audio_fp = io.BytesIO()
                 tts.write_to_fp(audio_fp)
                 st.audio(audio_fp, format='audio/mp3')
  
-
                 with st.expander("🇨🇿 Zobrazit český překlad"):
                     st.info(res.get('translation', 'N/A'))
 
                 st.divider()
 
-                # 3. GRAMMAR, SYNONYMS & IDIOMS (Na celou šířku)
+                # 3. GRAMMAR, SYNONYMS & IDIOMS
                 st.subheader("Grammar, Synonyms & Idioms")
                 d_clean = clean_output(res.get('details', ''), ['Meaning:', 'Grammar & Origin:', 'Synonyms & Idioms:'])
                 st.markdown(f"<div class='english-box'>{d_clean}</div>", unsafe_allow_html=True)
 
-                # 4. STYLISTIC & DIALECT CORNER (Na celou šířku pod tím)
+                # 4. STYLISTIC & DIALECT CORNER
                 st.subheader("Stylistic & Dialect Corner")
                 s_clean = clean_output(res.get('stylistic', ''), ['Colloquial (General):', 'Common Mistake:', 'Scottish English (Scots/Informal):', 'Cultural Context:'])
                 st.markdown(f"<div class='dialect-box'>{s_clean}</div>", unsafe_allow_html=True)
