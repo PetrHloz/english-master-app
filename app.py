@@ -45,10 +45,9 @@ def process_upload():
 
 # --- ANALÝZA (HLOUBKOVÝ MÓD MYŠLENÍ) ---
 def analyze_text(text):
-    # ZMĚNA: Přísnější instrukce pro pole "correction"
     system_instruction = """MÓD MYŠLENÍ AKTIVOVÁN. Jsi elitní lingvista. STRIKTNĚ SE DRŽ ZADÁNÍ, NIC NEZJEDNODUŠUJ.
     Vrať JSON objekt s těmito klíči:
-    "correction": "[Vrať POUZE a JENOM zadané slovo nebo frázi. Pokud obsahuje chybu, oprav ji a obal ZMĚNĚNOU část do tagu <b> (např. '<b>corrected</b> word'). ABSOLUTNÍ ZÁKAZ přidávat jakýkoliv jiný text, komentáře typu 'Text neobsahuje chyby' nebo vysvětlování! Pokud je vstup správně, vrať pouze původní vstup.]",
+    "correction": "[Vrať POUZE opravenou frázi. Změněná slova obal do <b> (např. 'This is <b>correct</b>'). Pokud je vstup bez chyb, vrať POUZE původní text. ZÁKAZ psát slova jako 'Correct:', 'Opraveno:' apod.]",
     "meaning": "[stručný význam]",
     "details": "Meaning: [hluboký rozbor]\\nGrammar & Origin: [komplexní gramatika a etymologie]\\nSynonyms & Idioms: [seznam]",
     "stylistic": "Colloquial (General): [US/UK slang]\\nCommon Mistake: [chyby]\\nScottish English (Scots/Informal): [autentické skotské verze]\\nCultural Context: [skotský/britský kontext]",
@@ -76,7 +75,6 @@ def clean_output(text, headers):
 # --- CSS STYLING ---
 st.markdown("""
     <style>
- 
     .english-box, .dialect-box { 
         background-color: #ffffff; color: #1a202c !important; 
         padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; 
@@ -117,15 +115,16 @@ if st.button("🚀 Spustit hloubkovou analýzu"):
                 
                 # 1. CORRECTION (Hned pod tlačítkem)
                 st.subheader("Correction")
-                corr = res.get('correction', '').strip()
+                corr = str(res.get('correction', '')).strip()
                 
-                # ZMĚNA: Kontrolujeme přímo přítomnost tagu <b>, což je náš indikátor provedené opravy
-                if '<b>' in corr.lower():
-                    display_corr = corr
-                else:
-                    display_corr = f"✅ Correct: {user_input}"
+                # Pojistka: Odstranění nechtěných prefixů, kdyby si AI postavila hlavu
+                corr = re.sub(r'^(correct|correct:|✅ correct:?)\s*', '', corr, flags=re.IGNORECASE).strip()
+                
+                # Pokud se něco pokazí a vrátí to prázdno, zobrazíme původní vstup
+                if not corr:
+                    corr = user_input
                     
-                st.markdown(f"<div class='correction-box'>{display_corr}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='correction-box'>{corr}</div>", unsafe_allow_html=True)
 
                 # 2. PRONUNCIATION
                 st.subheader("Pronunciation")
